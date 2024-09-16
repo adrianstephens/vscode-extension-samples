@@ -134,6 +134,16 @@
 				}
 			},
 			{
+				"command": "fileExplorer.markItem",
+				"title": "Mark",
+				"icon": "$(check)"
+			},
+			{
+				"command": "fileExplorer.unmarkItem",
+				"title": "Unmark",
+				"icon": "$(close)"
+			},
+			{
 				"command": "fileExplorer.openFile",
 				"title": "Open File"
 			},
@@ -200,7 +210,18 @@
 					"command": "fileExplorer.refreshFile",
 					"when": "view == fileExplorer && viewItem == file",
 					"group": "inline"
+				},
+				{
+					"command": "fileExplorer.markItem",
+					"when": "view == fileExplorer && viewItem == unmarked",
+					"group": "inline"
+				},
+				{
+					"command": "fileExplorer.unmarkItem",
+					"when": "view == fileExplorer && viewItem == marked",
+					"group": "inline"
 				}
+
 			]
 		},
 		"configuration": [

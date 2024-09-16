@@ -147,6 +147,7 @@ export class FileStat implements vscode.FileStat {
 interface Entry {
 	uri: vscode.Uri;
 	type: vscode.FileType;
+	marked: boolean;
 }
 
 //#endregion
@@ -154,6 +155,7 @@ interface Entry {
 export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscode.FileSystemProvider {
 
 	private _onDidChangeFile: vscode.EventEmitter<vscode.FileChangeEvent[]>;
+	_onDidChangeTreeData = new vscode.EventEmitter<Entry>();
 
 	constructor() {
 		this._onDidChangeFile = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
@@ -161,6 +163,9 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 
 	get onDidChangeFile(): vscode.Event<vscode.FileChangeEvent[]> {
 		return this._onDidChangeFile.event;
+	}
+	get onDidChangeTreeData() {
+		return this._onDidChangeTreeData.event;
 	}
 
 	watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
@@ -269,7 +274,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 	async getChildren(element?: Entry): Promise<Entry[]> {
 		if (element) {
 			const children = await this.readDirectory(element.uri);
-			return children.map(([name, type]) => ({ uri: vscode.Uri.file(path.join(element.uri.fsPath, name)), type }));
+			return children.map(([name, type]) => ({ uri: vscode.Uri.file(path.join(element.uri.fsPath, name)), type, marked: false }));
 		}
 
 		const workspaceFolder = (vscode.workspace.workspaceFolders ?? []).filter(folder => folder.uri.scheme === 'file')[0];
@@ -281,7 +286,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 				}
 				return a[1] === vscode.FileType.Directory ? -1 : 1;
 			});
-			return children.map(([name, type]) => ({ uri: vscode.Uri.file(path.join(workspaceFolder.uri.fsPath, name)), type }));
+			return children.map(([name, type]) => ({ uri: vscode.Uri.file(path.join(workspaceFolder.uri.fsPath, name)), type, marked: false }));
 		}
 
 		return [];
@@ -292,6 +297,8 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 		if (element.type === vscode.FileType.File) {
 			treeItem.command = { command: 'fileExplorer.openFile', title: "Open File", arguments: [element.uri], };
 			treeItem.contextValue = 'file';
+		} else {
+			treeItem.contextValue = element.marked ? 'marked' : 'unmarked';
 		}
 		return treeItem;
 	}
@@ -302,6 +309,14 @@ export class FileExplorer {
 		const treeDataProvider = new FileSystemProvider();
 		context.subscriptions.push(vscode.window.createTreeView('fileExplorer', { treeDataProvider }));
 		vscode.commands.registerCommand('fileExplorer.openFile', (resource) => this.openResource(resource));
+		vscode.commands.registerCommand('fileExplorer.markItem', (entry: Entry) => {
+			entry.marked = true;
+			treeDataProvider._onDidChangeTreeData.fire(entry);
+		});
+		vscode.commands.registerCommand('fileExplorer.unmarkItem', (entry: Entry) => {
+			entry.marked = false;
+			treeDataProvider._onDidChangeTreeData.fire(entry);
+		});
 	}
 
 	private openResource(resource: vscode.Uri): void {
